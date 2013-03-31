@@ -1,4 +1,6 @@
-#!/usr/bin/ruby -w
+#!/usr/bin/ruby
+
+# https://code.google.com/codejam/contest/1460488/dashboard#s=p2
 
 def permute(s)
   permutation = [s.to_i]
@@ -20,7 +22,7 @@ n = gets.chomp.to_i
   input = gets.chomp.split(' ')
   a = input[0].to_i
   b = input[1].to_i
-  
+
   a.upto(b) do |i|
     next if permutation_map[i] != nil
 

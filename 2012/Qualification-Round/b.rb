@@ -1,4 +1,6 @@
-#!/usr/bin/ruby -w
+#!/usr/bin/ruby
+
+# https://code.google.com/codejam/contest/1460488/dashboard#s=p1
 
 def can_achieve_best_score?(total_score, best_score, is_suprising_set_allowed)
   if best_score < 0

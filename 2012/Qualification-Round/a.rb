@@ -1,4 +1,6 @@
-#!/usr/bin/ruby -w
+#!/usr/bin/ruby
+
+# https://code.google.com/codejam/contest/1460488/dashboard
 
 char_to_char = {}
 
@@ -11,7 +13,7 @@ end
 
 n = STDIN.gets.chomp.to_i
 
-1.upto(n) do |id|  
+1.upto(n) do |id|
   line = STDIN.gets.chomp
 
   print "Case #%d: " %[id]
