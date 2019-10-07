@@ -1,0 +1,14 @@
+{
+  "resources":[
+    {"pattern":"Capsule.class"}, 
+    {"pattern":"clojure/core.clj"}, 
+    {"pattern":"clojure/core/server.clj"}, 
+    {"pattern":"clojure/core/server__init.class"}, 
+    {"pattern":"clojure/core/specs/alpha.clj"}, 
+    {"pattern":"clojure/core__init.class"}, 
+    {"pattern":"clojure/spec/alpha.clj"}, 
+    {"pattern":"clojure/spec/alpha__init.class"}, 
+    {"pattern":"io/github/greenrecyclebin/foregone_solution/brute_force.clj"}, 
+    {"pattern":"io/github/greenrecyclebin/foregone_solution/protocol.clj"}
+  ]
+}
