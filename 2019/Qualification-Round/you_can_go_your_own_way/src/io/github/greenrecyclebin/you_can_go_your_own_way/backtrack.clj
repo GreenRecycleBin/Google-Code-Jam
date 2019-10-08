@@ -1,49 +1,120 @@
-(ns io.github.greenrecyclebin.you-can-go-your-own-way.backtrack)
+(ns io.github.greenrecyclebin.you-can-go-your-own-way.backtrack
+  (:require
+   [clojure.pprint]))
 
-(defn solve [n exclusion-path]
-  (letfn [(solve [size n paths exclusion-path]
-            (println (format "(solve [%d %s %s])" n paths exclusion-path))
+(set! *warn-on-reflection* true)
+(set! *unchecked-math* :warn-on-boxed)
+
+(def ^:private starting-cell [0 0])
+(def ^:private directions #{\E \S})
+
+(defn solve [^long size exclusion-directions]
+  (letfn [(solve [^long n paths exclusion-path]
+            (println "Solving for n =" n)
             (if (zero? n)
-              [[[[0 0] \E]] [[[0 0] \S]]]
-              (let [paths (solve size (dec n) paths exclusion-path)
+
+              (vec
+               (for [direction directions]
+                 [{:cell starting-cell :direction direction}]))
+
+              (let [paths (solve (dec n) paths exclusion-path)
                     new-paths (mapcat #(generate-paths % exclusion-path) paths)]
-                (filter
-                 (fn [path] (valid? size n path exclusion-path))
-                 new-paths))))
+                (filter (fn [path] (valid? n path exclusion-path))
+                        new-paths))))
 
-          (valid? [size n paths exclusion-path]
-            (println (format "(valid? [size %d %s %s])" size n paths exclusion-path))
+          (valid?
+            ([n path exclusion-path]
+             (let [edge (nth path n)
+                   edge' (nth exclusion-path n)]
+               (and (valid? edge)
+                    (not (same-edge? edge edge')))))
 
-            (let [[[x y] move] (nth paths n)
-                  [[x' y'] move'] (nth exclusion-path n)
-                  result (not (or (and (= move move')
-                                       (= x x')
-                                       (= y y'))
-                                  (and (= move \E)
-                                       (>= (inc y) size))
-                                  (and (= move \S)
-                                       (>= (inc x) size))))]
-              (println "[[x y] move] =" [[x y] move])
-              (println "[[x' y'] move'] =" [[x' y'] move'])
-              (println "result =" result)
-              result))
+            ([edge]
+             (let [{:keys [cell direction]} edge
+                   [x y] (next-cell cell direction)]
+               (and (< -1 x size)
+                    (< -1 y size)))))
+
+          (same-edge? [edge edge']
+            (let [{:keys [cell direction]} edge
+                  {cell' :cell direction' :direction} edge'
+                  next-cell' (next-cell cell' direction')
+                  next-cell (next-cell cell direction)]
+              (and (= direction direction') (= next-cell next-cell'))))
+
 
           (generate-paths [path exclusion-path]
-            (let [[x y] (current-cell path)]
-              [(conj path [[x y] \E])
-               (conj path [[x y] \S])]))
+            (let [cell (next-cell path)]
+              (map #(conj path {:cell cell :direction %}) directions)))
 
-          (current-cell [path]
-            (println (format "(current-cell [%s])" path))
-            (if-let [last-path-component (peek path)]
-              (let [[[x y] move] last-path-component]
-                (case move
-                  \E [x (inc y)]
-                  \S [(inc x) y]))
-              [0 0]))]
-    (solve n (dec (- (* 2 n) 2)) nil exclusion-path)))
+          (next-cell
+            ([cell direction]
+             (let [[^long x ^long y] cell]
+               (case direction
+                 \E [x (inc y)]
+                 \S [(inc x) y])))
 
-(solve 2 [[[0 0] \S] [[1 0] \E]])
-(solve 5 [[[0 0] \E] [[0 1] \E] [[0 2] \S] [[1 2] \S] [[2 2] \S] [[2 3] \E] [[3 3] \S] [[4 3] \E]])
+            ([path]
+             (if-let [edge (peek path)]
+               (let [{:keys [cell direction]} edge]
+                 (next-cell cell direction))
 
-;; paths = [[[0 0] "E"] [[0 1] "S"]]
+               starting-cell)))
+
+          (generate-path-from-cell [cell directions]
+            (loop [path []
+                   cell cell
+                   directions directions]
+              (if-let [direction (first directions)]
+                (recur (conj path {:cell cell :direction direction})
+                       (next-cell cell direction)
+                       (rest directions))
+
+                path)))
+
+          (format-path-as-directions [path]
+            (map :direction path))]
+    (->> (generate-path-from-cell starting-cell exclusion-directions)
+         (solve (dec (* 2 (dec size))) nil)
+         (map
+          (fn [path]
+            (apply str (format-path-as-directions path)))))))
+
+(defn- generate-random-moves [^long size]
+  (let [directions (vec directions)
+        move-count (* 2 (dec size))
+        direction-limit (dec size)]
+    (loop [n move-count
+           moves (new StringBuilder n)
+           E-count 0
+           S-count 0]
+      (cond
+        (zero? n) (str moves)
+
+        (= E-count direction-limit)
+        (do
+          (.insert moves (- move-count n) (apply str (repeat (- direction-limit S-count) \S)))
+          (str moves))
+
+        (= S-count direction-limit)
+        (do
+          (.insert moves (- move-count n) (apply str (repeat (- direction-limit E-count) \E)))
+          (str moves))
+
+        :default
+        (let [direction (rand-nth directions)]
+          (recur (dec n)
+                 (.append moves direction)
+                 (if (= direction \E) (inc E-count) E-count)
+                 (if (= direction \S) (inc S-count) S-count)))))))
+
+;; (some #{"SE"} (solve 2 "ES"))
+;; (some #{"SEEESSES"} (solve 5 "EESSSESE"))
+;; (time (first (solve 100 "SESSSEEEEEEESESEEESESESSESESSSEEEESESEESEESESEESSESSESEEEESSSSESEESSSSESESEESEEESSESEESSSSEESSSESESESSSSESSSEESESSSESEEESSEEESESEESEEEESEESSSESEESSSESSEEESEEEESSESSSSESESESEESEEEESEESEESESSSESSSSSSS")))
+;; (time (first (solve 1000 "ESESESSEESEEESEESESEEEEESSSSESEESEEEEEEEESSSSEESEESEEEESEEESESSEEEESSSSESEEESESSSSSEESSSEEESESEEESSEESEESSESSSESESSSSSSESESSSESEESESESSSSESSESEEESSESEESESSEESESESEEESEEESESSSEEEESSSEEESSESSSSSESESEEESESSESESSSSSEEESSESSESSESEESSEEEEEESSSSEESEESESSSESESESESESSEESSESSSSEESESEESEESEESSESESEEEESSSEEESSESEESSESESSSESEEESSESSSEEEESSESSSESSESSSSESEESSEEESEESESSSSEESESSEEESSEEEEESSESEESESSSESSSESESESEESESSSSSESESEESEEESSSSSESSEEEESEESESEEEEESESESSESSESSSEEESSEESSESEEEESSESSSEEESESSSSSSEESSESSEEESSEEESSSESSESESSSSESESSSESESSSSESESSEEEESSESSSSESSSESEESSESEESSSSESSSESESESESESSESEEEEESESEESSSSSESSEESSSEESEEEESSESESSESSESSSSEESSESEEEEEESESSSSSEEESESEEEESEESESSSSSSEESEEEESSSESESSESESESSESEESESSEESSSESESESSESSESSSESESSSSSSEESSESEEEEEEESSSESSEEESESSSESEEESESEEEESSSSEESEESEESEESESSEESEESEESSEESESSESSSSSSESSESSSEEEESEEEEESSEEESSSESSSEESSEESEESEESEESEESSSEEESEESEEEESESSSSSEEEESSSESESESESEEEESSEESSSSSEESEESEEESSSSSESESESESSESEESSESSSESEESESESESSEESEEESSESEESESSEEEESSEEEEEESESSSEESESEEESEEEESSSEESESSESESEEESSSSESSSSSSEEESEEEEESEEESEESSSEEESSESEESSSSESSSESESESSEESEESSSSSEESEEESSSSESEEESEEEEESEEESSSEESEESSSEEESSEEESESSSSSSSEEEEESSEESESSSSSESESSSESESEEESEEEEESEEEESSSEESSSESSEESESSSEESESEESEEESESSSESSEESSEESSEEEEESSESSSEEEESSSSESEESESESSSESESSESSEESSSSESSSSESSEEESEESSSEEEEEEEESEEESEEEEESSEESSESSEESESEESSEEESESSESSEEESSSSSSSEEESSESSEEESSEEEESSESSEESEESEEESESSEEEEESEESEEESEEEESEEEESEEEESESSESEEEESSSSEESESSESEEESESEESSESEESEEEEESESEEESSEEESEESSSESEESSSEEESSSSSSSESESESEESEESESESEEESSSESSSSESSSSSESEEEEESEESEEESEEESSSSEESSEEESESEEEESSSSESEEESSSESESSEEEESSESESEESSESEEEEESSEEESESSESSEEEESSSEEEESEESSSSSEEEESEEESSEESSEESEEEESEESESEEESEESEEEEESEESESEESSSEESEEEEEESSEEEEEEEESEEESSEEEEESEEEESEESSESSSSSESSEEEEESESESSESEESSESEEEEEESESESSEESSSEESESEESSEESSESESESESSSESESSSESSSEEESSEEEESESESESEESSSSSEEEEEESSEESEEEESEEEESEEEESEESSESSSSESSSEEEEESESSSSESEEEESSEESSSSEEEEEESSSSESESESSSSEESSSESSESSSEEESEESEEESSESSEEESSESSSESEESEESESESESSESESSESEESEESSESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS")))
+;; "Elapsed time: 1468944.770808 msecs"
+
+(let [size 1500
+      exclusion-moves (generate-random-moves size)]
+  (prn exclusion-moves)
+  (time (first (solve size exclusion-moves))))
